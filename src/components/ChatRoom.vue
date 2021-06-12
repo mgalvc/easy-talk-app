@@ -58,7 +58,7 @@ export default {
 
 <style scoped>
 #chat-container {
-  height: 100vh;
+  height: 95vh;
 }
 
 #info-container {
