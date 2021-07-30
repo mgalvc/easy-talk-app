@@ -3,10 +3,19 @@
     <el-main>
       <h1>Welcome to Easy Talk</h1>
       <el-card shadow="never">
-        <el-button type="primary" round @click="newRoom"
+        <p>Give yourself a username</p>
+        <el-row>
+          <el-col :span="12">
+            <el-input 
+              placeholder="Your username"
+              v-model="username"
+            ></el-input>
+          </el-col>
+        </el-row>
+        <el-divider></el-divider>
+        <el-button :disabled="!username" type="primary" round @click="newRoom"
           >Create a new room</el-button
         >
-        <el-divider></el-divider>
         <p>Or get into an already created room</p>
         <el-row :gutter="10">
           <el-col :span="12">
@@ -16,7 +25,7 @@
             ></el-input>
           </el-col>
           <el-col :span="12">
-            <el-button type="primary" round plain @click="enterRoom"
+            <el-button :disabled="!username" type="primary" round plain @click="enterRoom"
               >Take me there</el-button
             >
           </el-col>
@@ -27,32 +36,37 @@
 </template>
 
 <script>
-import { ref } from "@vue/reactivity";
-import router from "../router";
 import { ElMessage } from "element-plus";
+import useStore from '../composition/store';
+import useConnection from '../composition/socket';
 
 export default {
   name: "HomePage",
   setup() {
-    const roomCode = ref("");
+    const { username, roomCode } = useStore();
+    const { socket, joinRoom } = useConnection();
 
-    const newRoom = () => {
-      router.push("/room/123");
+    socket.on('create_room:success', roomId => {
+      roomCode.value = roomId
+      joinRoom();
+    })
+
+    socket.on('create_user:error', (error) => {
+      ElMessage({
+        message: error,
+        type: 'error'
+      })
+    })
+
+    const newRoom = async () => {
+      socket.emit('create_room');
     };
 
-    const enterRoom = () => {
-      if (roomCode.value) {
-        router.push(`/room/${roomCode.value}`);
-      } else {
-        ElMessage({
-          message: "You need to provide a room code",
-          type: "error",
-          showClose: true
-        });
-      }
+    const enterRoom = async () => {
+      joinRoom();
     };
 
-    return { roomCode, newRoom, enterRoom };
+    return { username, roomCode, newRoom, enterRoom };
   },
 };
 </script>

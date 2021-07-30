@@ -1,16 +1,26 @@
 <template>
   <el-container id="chat-container">
-    <el-header id="info-container" height="50px">
-      <div>Easy Talk</div>
+    <el-header id="info-container">
+      <el-row id="header-row">
+        <el-col :span="12">
+          <b>{{ username }}</b
+          ><br />
+          <i>Connected with {{ usersConnected.join(", ") || "none" }}</i>
+        </el-col>
+        <el-col :span="12" style="text-align: right">
+          <el-button type="primary" icon="el-icon-share" @click="copyRoomCode">Copiar código</el-button>
+          <el-button type="danger" @click="disconnect">Sair</el-button>
+        </el-col>
+      </el-row>
     </el-header>
     <el-main id="messages-container">
       <div
         v-for="message of messages"
         :key="message"
         class="message"
-        :class="{ 'text-right': message.from === 'you' }"
+        :class="{ 'text-right': message.from === username }"
       >
-        {{ message.from === "you" ? "You" : message.from }}:
+        {{ message.from === username ? "You" : message.from }}:
         {{ message.text }}
       </div>
     </el-main>
@@ -28,30 +38,68 @@
 
 <script>
 import { ref } from "@vue/reactivity";
+import { useRoute, useRouter } from "vue-router";
+import useStore from "../composition/store";
+import useConnection from "../composition/socket";
+import { onMounted } from "@vue/runtime-core";
 
 export default {
   name: "ChatRoom",
   setup() {
     const message = ref("");
     const messages = ref([]);
-    const username = "you";
+    const { username, usersConnected } = useStore();
+    const { id: room } = useRoute().params;
+    const { push } = useRouter();
+    const { socket, isConnected, leaveRoom, joinRoom } = useConnection();
+
+    onMounted(() => {
+      if (!username.value) {
+        push("/");
+      }
+
+      if (!isConnected.value) {
+        joinRoom(room);
+      }
+    });
+
+    socket.on("message", ({ username, message }) => {
+      messages.value.push({
+        from: username,
+        text: message,
+      });
+      setTimeout(() => {
+        const container = document.getElementById("messages-container");
+        container.scrollTop = container.scrollHeight;
+      }, 25);
+    });
 
     const sendMessage = () => {
       if (message.value) {
-        messages.value.push({
-          from: username,
-          text: message.value,
+        socket.emit("message", {
+          username: username.value,
+          message: message.value,
+          room,
         });
         message.value = "";
-
-        setTimeout(() => {
-          const container = document.getElementById("messages-container");
-          container.scrollTop = container.scrollHeight;
-        }, 25);
       }
     };
 
-    return { message, messages, username, sendMessage };
+    const copyRoomCode = () => {
+      const el = document.createElement('textarea')
+      el.value = room
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+
+    const disconnect = () => {
+      leaveRoom()
+      push('/')
+    }
+
+    return { message, messages, username, usersConnected, disconnect, copyRoomCode, sendMessage };
   },
 };
 </script>
@@ -67,12 +115,8 @@ export default {
   margin-bottom: 10px;
 }
 
-#info-container div {
-  margin: 0;
-  position: relative;
-  top: 50%;
-  -ms-transform: translateY(-50%);
-  transform: translateY(-50%);
+#header-row {
+  margin-top: 10px;
 }
 
 #messages-container {
