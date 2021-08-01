@@ -3,7 +3,9 @@ import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import useStore from './store';
 
-let socket = io('http://localhost:3000')
+const server = process.env.VUE_APP_SERVER_URL
+
+let socket = io(server)
 const isConnected = ref(false);
 
 const useConnection = () => {
@@ -38,7 +40,7 @@ const useConnection = () => {
   const leaveRoom = () => {
     socket.disconnect()
     cleanStore()
-    socket = io('http://localhost:3000')
+    socket = io(server)
   }
 
   return { socket, isConnected, leaveRoom, joinRoom }
